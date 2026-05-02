@@ -106,7 +106,7 @@ fun MemberDetailScreen(
                 )
             } else {
                 Image(
-                    painter = painterResource(id = R.drawable.shakthi),
+                    painter = painterResource(id = R.drawable.mahilashakti),
                     contentDescription = null,
                     modifier = Modifier
                         .size(120.dp)

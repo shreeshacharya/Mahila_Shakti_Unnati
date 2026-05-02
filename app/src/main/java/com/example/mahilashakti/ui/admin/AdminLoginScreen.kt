@@ -1,6 +1,5 @@
 package com.example.mahilashakti.ui.admin
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -34,90 +32,112 @@ fun AdminLoginScreen(
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Image(
-            painter = painterResource(id = R.drawable.shakthi),
-            contentDescription = "App Logo",
+            painter = painterResource(id = R.drawable.mahilashakti),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Semi-transparent overlay to ensure text readability
+        Box(
             modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            contentScale = ContentScale.Fit
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Mahila-Shakti Unnati",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-
-        HoverInputField(
-            value = username,
-            onValueChange = { username = it; error = null },
-            label = "Username"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        HoverInputField(
-            value = password,
-            onValueChange = { password = it; error = null },
-            label = "Password",
-            isPassword = true
-        )
-
-        if (error != null) {
-            Text(
-                text = error!!,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        var isBtnHovered by remember { mutableStateOf(false) }
-        val btnScale by animateFloatAsState(
-            targetValue = if (isBtnHovered) 1.1f else 1.0f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-            label = "btnScale"
-        )
-        
-        Button(
-            onClick = {
-                if (username == "admin" && password == "admin123") {
-                    onLoginSuccess()
-                } else {
-                    error = "Invalid username or password"
-                }
-            },
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .scale(btnScale)
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            when (event.type) {
-                                PointerEventType.Enter -> isBtnHovered = true
-                                PointerEventType.Exit -> isBtnHovered = false
-                            }
-                        }
-                    }
-                },
-            shape = RoundedCornerShape(12.dp)
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text("Login", fontSize = 18.sp, modifier = Modifier.padding(8.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Mahila-Shakti Unnati",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    HoverInputField(
+                        value = username,
+                        onValueChange = { username = it; error = null },
+                        label = "Username"
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    HoverInputField(
+                        value = password,
+                        onValueChange = { password = it; error = null },
+                        label = "Password",
+                        isPassword = true
+                    )
+
+                    if (error != null) {
+                        Text(
+                            text = error!!,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    var isBtnHovered by remember { mutableStateOf(false) }
+                    val btnScale by animateFloatAsState(
+                        targetValue = if (isBtnHovered) 1.05f else 1.0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "btnScale"
+                    )
+                    
+                    Button(
+                        onClick = {
+                            if (username == "admin" && password == "admin123") {
+                                onLoginSuccess()
+                            } else {
+                                error = "Invalid username or password"
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .scale(btnScale)
+                            .pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        when (event.type) {
+                                            PointerEventType.Enter -> isBtnHovered = true
+                                            PointerEventType.Exit -> isBtnHovered = false
+                                        }
+                                    }
+                                }
+                            },
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
@@ -130,21 +150,16 @@ fun HoverInputField(
     isPassword: Boolean = false
 ) {
     var isHovered by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isHovered) 1.08f else 1.0f,
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isHovered) 1.02f else 1.0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "fieldScale"
-    )
-    val bgColor by animateColorAsState(
-        targetValue = if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
-        label = "fieldBg"
     )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
-            .background(bgColor, RoundedCornerShape(12.dp))
+            .scale(animatedScale)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -163,11 +178,11 @@ fun HoverInputField(
             label = { Text(label) },
             visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                unfocusedBorderColor = if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
             )
         )
     }
