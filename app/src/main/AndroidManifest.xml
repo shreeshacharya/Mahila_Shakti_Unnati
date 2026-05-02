@@ -7,9 +7,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/shakthi"
+        android:icon="@drawable/mahilashakti"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/shakthi"
+        android:roundIcon="@drawable/mahilashakti"
         android:supportsRtl="true"
         android:theme="@style/Theme.MahilaShaktiUnnati"
         tools:targetApi="31">
