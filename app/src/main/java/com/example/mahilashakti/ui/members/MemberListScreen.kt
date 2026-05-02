@@ -12,9 +12,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,14 +30,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.mahilashakti.R
 import com.example.mahilashakti.data.entity.Member
+import com.example.mahilashakti.utils.FileUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,12 +51,14 @@ fun MemberListScreen(
     viewModel: MemberViewModel = hiltViewModel(),
     onMemberClick: (Long) -> Unit
 ) {
+    val context = LocalContext.current
     val members by viewModel.members.collectAsState()
     val totalSavings by viewModel.totalGroupSavings.collectAsState()
     val weeklySavings by viewModel.weeklySavings.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var memberToConfirmPayment by remember { mutableStateOf<Member?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -66,10 +71,9 @@ fun MemberListScreen(
             )
         },
         floatingActionButton = {
-            val interactionSource = remember { MutableInteractionSource() }
-            val isHovered by interactionSource.collectIsHoveredAsState()
+            var isHovered by remember { mutableStateOf(false) }
             val fabScale by animateFloatAsState(
-                if (isHovered) 1.15f else 1.0f, 
+                if (isHovered) 1.15f else 1.0f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                 label = "fabScale"
             )
@@ -78,8 +82,15 @@ fun MemberListScreen(
                 onClick = { showAddDialog = true },
                 modifier = Modifier
                     .scale(fabScale)
-                    .hoverable(interactionSource),
-                interactionSource = interactionSource
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Enter) isHovered = true
+                                if (event.type == PointerEventType.Exit) isHovered = false
+                            }
+                        }
+                    }
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Member")
             }
@@ -102,6 +113,24 @@ fun MemberListScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search members...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -112,8 +141,12 @@ fun MemberListScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
+            val filteredMembers = members.filter {
+                it.name.startsWith(searchQuery, ignoreCase = true)
+            }
+
             LazyColumn {
-                items(members) { member ->
+                items(filteredMembers) { member ->
                     val currentTotal = weeklySavings
                         .filter { it.memberId == member.id }
                         .sumOf { it.amount }
@@ -144,7 +177,10 @@ fun MemberListScreen(
             AddMemberDialog(
                 onDismiss = { showAddDialog = false },
                 onAdd = { name, phone, photoUri ->
-                    viewModel.addMember(name, phone, photoUri)
+                    val savedUri = photoUri?.let {
+                        FileUtils.saveImageToInternalStorage(context, it)
+                    }
+                    viewModel.addMember(name, phone, savedUri)
                     showAddDialog = false
                 }
             )
@@ -193,17 +229,15 @@ fun MemberItem(
     onDelete: () -> Unit,
     onPaidChange: (Boolean) -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    
+    var isHovered by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        if (isHovered) 1.05f else 1.0f, 
+        if (isHovered) 1.08f else 1.0f, 
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "itemScale"
     )
     val bgColor by animateColorAsState(
-        targetValue = if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface,
-        label = "itemHover"
+        targetValue = if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
+        label = "itemBg"
     )
 
     Card(
@@ -211,18 +245,22 @@ fun MemberItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .scale(scale)
-            .hoverable(interactionSource),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 12.dp else 2.dp),
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Enter) isHovered = true
+                        if (event.type == PointerEventType.Exit) isHovered = false
+                    }
+                }
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 8.dp else 2.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = LocalIndication.current,
-                    onClick = { onMemberClick(member.id) }
-                )
+                .clickable { onMemberClick(member.id) }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -237,14 +275,14 @@ fun MemberItem(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Icon(
-                    Icons.Default.Person,
+                Image(
+                    painter = painterResource(id = R.drawable.shakthi),
                     contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(8.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                    contentScale = ContentScale.Crop
                 )
             }
             
@@ -266,7 +304,7 @@ fun MemberItem(
                 Switch(
                     checked = isPaid,
                     onCheckedChange = onPaidChange,
-                    scale = 0.8f
+                    modifier = Modifier.graphicsLayer(scaleX = 0.8f, scaleY = 0.8f)
                 )
                 Text(
                     text = if (isPaid) "Paid" else "Pending",
@@ -289,20 +327,7 @@ fun MemberItem(
 }
 
 @Composable
-fun Switch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    scale: Float
-) {
-    androidx.compose.material3.Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = Modifier.graphicsLayer(scaleX = scale, scaleY = scale)
-    )
-}
-
-@Composable
-fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, String?) -> Unit) {
+fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var photoUri by remember { mutableStateOf<Uri?>(null) }
@@ -341,7 +366,7 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, String?) -> U
                         )
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                            Icon(Icons.Default.Add, contentDescription = null)
                             Text("Add Photo", fontSize = 10.sp)
                         }
                     }
@@ -350,80 +375,47 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, String?) -> U
                 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val nameInteractionSource = remember { MutableInteractionSource() }
-                val isNameHovered by nameInteractionSource.collectIsHoveredAsState()
-                val nameScale by animateFloatAsState(if (isNameHovered) 1.05f else 1.0f)
-                val nameBg by animateColorAsState(if (isNameHovered) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .scale(nameScale)
-                        .hoverable(nameInteractionSource),
-                    interactionSource = nameInteractionSource,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = nameBg,
-                        focusedContainerColor = nameBg
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
+                RobustDialogHoverField(value = name, onValueChange = { name = it }, label = "Name")
                 Spacer(modifier = Modifier.height(12.dp))
-
-                val phoneInteractionSource = remember { MutableInteractionSource() }
-                val isPhoneHovered by phoneInteractionSource.collectIsHoveredAsState()
-                val phoneScale by animateFloatAsState(if (isPhoneHovered) 1.05f else 1.0f)
-                val phoneBg by animateColorAsState(if (isPhoneHovered) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-
-                OutlinedTextField(
-                    value = phone,
+                RobustDialogHoverField(
+                    value = phone, 
                     onValueChange = { 
                         if (it.length <= 10) {
                             phone = it
                             phoneError = null
                         }
-                    },
-                    label = { Text("Phone Number") },
+                    }, 
+                    label = "Phone Number",
                     isError = phoneError != null,
-                    supportingText = {
-                        if (phoneError != null) {
-                            Text(phoneError!!, color = MaterialTheme.colorScheme.error)
-                        } else {
-                            Text("${phone.length}/10")
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .scale(phoneScale)
-                        .hoverable(phoneInteractionSource),
-                    interactionSource = phoneInteractionSource,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = phoneBg,
-                        focusedContainerColor = phoneBg
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    supportingText = if (phoneError != null) phoneError else "${phone.length}/10"
                 )
             }
         },
         confirmButton = {
-            val addInteractionSource = remember { MutableInteractionSource() }
-            val isAddHovered by addInteractionSource.collectIsHoveredAsState()
-            val addScale by animateFloatAsState(if (isAddHovered) 1.1f else 1.0f)
+            var isHovered by remember { mutableStateOf(false) }
+            val scale by animateFloatAsState(if (isHovered) 1.1f else 1.0f, label = "btnScale")
             
             Button(
                 onClick = {
-                    if (name.isBlank()) {
-                    } else if (phone.length != 10) {
-                        phoneError = "Phone number must be exactly 10 digits"
-                    } else {
-                        onAdd(name, phone, photoUri?.toString())
+                    if (name.isNotBlank()) {
+                        if (phone.length == 10) {
+                            onAdd(name, phone, photoUri)
+                        } else {
+                            phoneError = "Phone number must be exactly 10 digits"
+                        }
                     }
                 },
-                modifier = Modifier.scale(addScale).hoverable(addInteractionSource),
-                interactionSource = addInteractionSource
+                modifier = Modifier
+                    .scale(scale)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Enter) isHovered = true
+                                if (event.type == PointerEventType.Exit) isHovered = false
+                            }
+                        }
+                    }
             ) {
                 Text("Add Member")
             }
@@ -434,4 +426,48 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, String?) -> U
             }
         }
     )
+}
+
+@Composable
+fun RobustDialogHoverField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    isError: Boolean = false,
+    supportingText: String? = null
+) {
+    var isHovered by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isHovered) 1.08f else 1.0f, label = "fieldScale")
+    val bgColor by animateColorAsState(if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent, label = "fieldBg")
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .background(bgColor, RoundedCornerShape(12.dp))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Enter) isHovered = true
+                        if (event.type == PointerEventType.Exit) isHovered = false
+                    }
+                }
+            }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            isError = isError,
+            supportingText = supportingText?.let { { Text(it) } },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedBorderColor = if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
+        )
+    }
 }

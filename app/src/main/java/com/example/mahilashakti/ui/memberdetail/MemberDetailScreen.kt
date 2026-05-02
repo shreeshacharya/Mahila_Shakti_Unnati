@@ -4,13 +4,13 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,15 +18,24 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.example.mahilashakti.R
 import com.example.mahilashakti.data.entity.Loan
 import com.example.mahilashakti.utils.IntentUtils
 
@@ -81,8 +90,44 @@ fun MemberDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Member Photo
+            if (memberWithSavings?.member?.photoUri != null) {
+                AsyncImage(
+                    model = memberWithSavings?.member?.photoUri,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.shakthi),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = memberWithSavings?.member?.name ?: "",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            memberWithSavings?.member?.phoneNumber?.let {
+                Text(text = it, fontSize = 16.sp, color = MaterialTheme.colorScheme.secondary)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             val totalSavings = memberWithSavings?.savings?.sumOf { it.amount } ?: 0.0
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -101,12 +146,12 @@ fun MemberDetailScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Action Buttons with Hover Expansion
+            // Action Buttons with working hover
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                HoverButton(onClick = { showAddSavings = true }, text = "Add Savings")
-                HoverButton(onClick = { showRequestLoan = true }, text = "Request Loan")
+                RobustHoverButton(onClick = { showAddSavings = true }, text = "Add Savings")
+                RobustHoverButton(onClick = { showRequestLoan = true }, text = "Request Loan")
             }
 
             if (loanError != null) {
@@ -114,12 +159,12 @@ fun MemberDetailScreen(
                 Button(onClick = { viewModel.clearLoanError() }) { Text("Dismiss Error") }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Active Loans", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Active Loans", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             
             val activeLoans = memberWithLoans?.loans?.filter { !it.isPaid } ?: emptyList()
             if (activeLoans.isEmpty()) {
-                Text("No active loans.", modifier = Modifier.padding(vertical = 8.dp))
+                Text("No active loans.", modifier = Modifier.padding(vertical = 8.dp).align(Alignment.Start))
             } else {
                 LazyColumn {
                     items(activeLoans) { loan ->
@@ -153,40 +198,58 @@ fun MemberDetailScreen(
 }
 
 @Composable
-fun HoverButton(onClick: () -> Unit, text: String, modifier: Modifier = Modifier) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+fun RobustHoverButton(onClick: () -> Unit, text: String, modifier: Modifier = Modifier) {
+    var isHovered by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isHovered) 1.1f else 1.0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "btnScale"
+        if (isHovered) 1.1f else 1.0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
     )
-
+    
     Button(
         onClick = onClick,
-        modifier = modifier.scale(scale).hoverable(interactionSource),
-        interactionSource = interactionSource
+        modifier = modifier
+            .scale(scale)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Enter) isHovered = true
+                        if (event.type == PointerEventType.Exit) isHovered = false
+                    }
+                }
+            }
     ) {
-        Text(text)
+        Text(text, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
     }
 }
 
 @Composable
 fun LoanItem(loan: Loan, onRepay: (Double) -> Unit) {
     var showRepayDialog by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    val scale by animateFloatAsState(if (isHovered) 1.05f else 1.0f, label = "loanScale")
+    var isHovered by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isHovered) 1.05f else 1.0f)
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).scale(scale),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .scale(scale)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Enter) isHovered = true
+                        if (event.type == PointerEventType.Exit) isHovered = false
+                    }
+                }
+            },
         elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 8.dp else 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Principal: ₹${loan.amount} @ ${loan.interestRate}% for ${loan.durationMonths}m")
             Text("Remaining Balance: ₹${String.format("%.2f", loan.remainingBalance)}", fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            HoverButton(onClick = { showRepayDialog = true }, text = "Repay Installment")
+            Spacer(modifier = Modifier.height(12.dp))
+            RobustHoverButton(onClick = { showRepayDialog = true }, text = "Repay Installment")
         }
     }
 
@@ -205,32 +268,19 @@ fun LoanItem(loan: Loan, onRepay: (Double) -> Unit) {
 @Composable
 fun AmountDialog(title: String, onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
     var amountStr by remember { mutableStateOf("") }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-
-    val scale by animateFloatAsState(if (isHovered) 1.08f else 1.0f, label = "fieldScale")
-    val bgColor by animateColorAsState(if (isHovered) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, label = "fieldBg")
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
+            RobustHoverTextField(
                 value = amountStr,
                 onValueChange = { amountStr = it },
-                label = { Text("Amount (₹)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth().scale(scale).hoverable(interactionSource),
-                interactionSource = interactionSource,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = bgColor,
-                    focusedContainerColor = bgColor
-                )
+                label = "Amount (₹)",
+                isNumber = true
             )
         },
         confirmButton = {
-            HoverButton(onClick = {
+            RobustHoverButton(onClick = {
                 val amount = amountStr.toDoubleOrNull()
                 if (amount != null && amount > 0) onConfirm(amount)
             }, text = "Confirm")
@@ -252,15 +302,15 @@ fun RequestLoanDialog(onDismiss: () -> Unit, onRequest: (Double, Double, Int) ->
         title = { Text("Request Loan") },
         text = {
             Column {
-                HoverTextField(value = amountStr, onValueChange = { amountStr = it }, label = "Principal Amount (₹)")
+                RobustHoverTextField(value = amountStr, onValueChange = { amountStr = it }, label = "Principal Amount (₹)", isNumber = true)
                 Spacer(modifier = Modifier.height(12.dp))
-                HoverTextField(value = rateStr, onValueChange = { rateStr = it }, label = "Interest Rate (% per year)")
+                RobustHoverTextField(value = rateStr, onValueChange = { rateStr = it }, label = "Interest Rate (%)", isNumber = true)
                 Spacer(modifier = Modifier.height(12.dp))
-                HoverTextField(value = durationStr, onValueChange = { durationStr = it }, label = "Duration (Months)")
+                RobustHoverTextField(value = durationStr, onValueChange = { durationStr = it }, label = "Duration (Months)", isNumber = true)
             }
         },
         confirmButton = {
-            HoverButton(onClick = {
+            RobustHoverButton(onClick = {
                 val amount = amountStr.toDoubleOrNull()
                 val rate = rateStr.toDoubleOrNull()
                 val duration = durationStr.toIntOrNull()
@@ -272,23 +322,43 @@ fun RequestLoanDialog(onDismiss: () -> Unit, onRequest: (Double, Double, Int) ->
 }
 
 @Composable
-fun HoverTextField(value: String, onValueChange: (String) -> Unit, label: String) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    val scale by animateFloatAsState(if (isHovered) 1.08f else 1.0f, label = "hScale")
-    val bgColor by animateColorAsState(if (isHovered) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, label = "hBg")
+fun RobustHoverTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    isNumber: Boolean = false
+) {
+    var isHovered by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isHovered) 1.08f else 1.0f)
+    val bgColor by animateColorAsState(if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent)
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth().scale(scale).hoverable(interactionSource),
-        interactionSource = interactionSource,
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = bgColor,
-            focusedContainerColor = bgColor
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .background(bgColor, RoundedCornerShape(12.dp))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Enter) isHovered = true
+                        if (event.type == PointerEventType.Exit) isHovered = false
+                    }
+                }
+            }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedBorderColor = if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
         )
-    )
+    }
 }
