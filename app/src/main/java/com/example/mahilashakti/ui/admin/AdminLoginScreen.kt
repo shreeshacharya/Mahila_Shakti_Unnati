@@ -63,7 +63,7 @@ fun AdminLoginScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = Color(0xFFFDF7FD) // Very light purple tint
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(28.dp),
@@ -138,7 +138,7 @@ fun AdminLoginScreen(
                             containerColor = Color(0xFF8E248D) // Deep purple matching the logo
                         )
                     ) {
-                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
@@ -188,8 +188,12 @@ fun HoverInputField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedLabelColor = Color(0xFF8E248D),
+                unfocusedLabelColor = Color.Gray,
                 focusedBorderColor = Color(0xFF8E248D),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.LightGray,
                 cursorColor = Color(0xFF8E248D)
             )
         )

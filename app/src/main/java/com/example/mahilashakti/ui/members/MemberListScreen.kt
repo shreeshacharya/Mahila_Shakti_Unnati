@@ -63,10 +63,24 @@ fun MemberListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mahila-Shakti Unnati") },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.mahilashakti),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .padding(2.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Mahila-Shakti Unnati", fontWeight = FontWeight.Bold)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = Color(0xFF8E248D),
+                    titleContentColor = Color.White
                 )
             )
         },
@@ -80,6 +94,8 @@ fun MemberListScreen(
             
             FloatingActionButton(
                 onClick = { showAddDialog = true },
+                containerColor = Color(0xFF8E248D),
+                contentColor = Color.White,
                 modifier = Modifier
                     .scale(fabScale)
                     .pointerInput(Unit) {
@@ -104,11 +120,12 @@ fun MemberListScreen(
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF7FD)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Total Group Savings", fontSize = 16.sp)
-                    Text("₹${String.format("%.2f", totalSavings)}", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text("Total Group Savings", fontSize = 16.sp, color = Color(0xFF8E248D))
+                    Text("₹${String.format("%.2f", totalSavings)}", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF8E248D))
                 }
             }
 
@@ -120,26 +137,39 @@ fun MemberListScreen(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search members...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF8E248D)) },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White,
+                    focusedBorderColor = Color(0xFF8E248D),
+                    unfocusedBorderColor = Color(0xFF8E248D).copy(alpha = 0.3f)
                 )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Members", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("Weekly Target: ₹150", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                Text("Members", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8E248D))
+                Surface(
+                    color = Color(0xFF8E248D).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "Weekly Target: ₹150", 
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontSize = 12.sp, 
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF8E248D)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             val filteredMembers = members.filter {
                 it.name.startsWith(searchQuery, ignoreCase = true)
@@ -194,7 +224,7 @@ fun MemberListScreen(
 
             AlertDialog(
                 onDismissRequest = { memberToConfirmPayment = null },
-                title = { Text("Confirm Weekly Payment") },
+                title = { Text("Confirm Weekly Payment", color = Color(0xFF8E248D)) },
                 text = { 
                     if (currentTotal > 0) {
                         Text("${member.name} has already paid ₹${String.format("%.2f", currentTotal)}. Add remaining ₹${String.format("%.2f", needed)} to reach the ₹150 goal?")
@@ -203,16 +233,19 @@ fun MemberListScreen(
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
-                        viewModel.toggleWeeklySavings(member.id, true, 150.0)
-                        memberToConfirmPayment = null
-                    }) {
+                    Button(
+                        onClick = {
+                            viewModel.toggleWeeklySavings(member.id, true, 150.0)
+                            memberToConfirmPayment = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E248D))
+                    ) {
                         Text("Confirm")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { memberToConfirmPayment = null }) {
-                        Text("Cancel")
+                        Text("Cancel", color = Color(0xFF8E248D))
                     }
                 }
             )
@@ -231,19 +264,19 @@ fun MemberItem(
 ) {
     var isHovered by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        if (isHovered) 1.08f else 1.0f, 
+        if (isHovered) 1.03f else 1.0f, 
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "itemScale"
     )
     val bgColor by animateColorAsState(
-        targetValue = if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface,
+        targetValue = if (isHovered) Color(0xFFFDF7FD) else Color.White,
         label = "itemBg"
     )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 6.dp)
             .scale(scale)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
@@ -254,8 +287,9 @@ fun MemberItem(
                     }
                 }
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 8.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 6.dp else 2.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -269,9 +303,9 @@ fun MemberItem(
                     model = member.photoUri,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                        .border(2.dp, Color(0xFF8E248D), CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -279,24 +313,24 @@ fun MemberItem(
                     painter = painterResource(id = R.drawable.mahilashakti),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                        .border(2.dp, Color(0xFF8E248D), CircleShape),
                     contentScale = ContentScale.Crop
                 )
             }
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(member.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(member.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
                 if (!member.phoneNumber.isNullOrBlank()) {
-                    Text(member.phoneNumber, fontSize = 14.sp, color = MaterialTheme.colorScheme.secondary)
+                    Text(member.phoneNumber, fontSize = 14.sp, color = Color.Gray)
                 }
                 Text(
-                    text = "Weekly: ₹${String.format("%.2f", currentWeeklyAmount)} / ₹150",
-                    fontSize = 12.sp,
-                    color = if (isPaid) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    text = "Paid: ₹${String.format("%.2f", currentWeeklyAmount)} / ₹150",
+                    fontSize = 13.sp,
+                    color = if (isPaid) Color(0xFF4CAF50) else Color(0xFF8E248D),
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
@@ -304,22 +338,28 @@ fun MemberItem(
                 Switch(
                     checked = isPaid,
                     onCheckedChange = onPaidChange,
-                    modifier = Modifier.graphicsLayer(scaleX = 0.8f, scaleY = 0.8f)
+                    modifier = Modifier.graphicsLayer(scaleX = 0.85f, scaleY = 0.85f),
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF4CAF50),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color.LightGray
+                    )
                 )
                 Text(
-                    text = if (isPaid) "Paid" else "Pending",
+                    text = if (isPaid) "PAID" else "PENDING",
                     fontSize = 10.sp,
                     color = if (isPaid) Color(0xFF4CAF50) else Color(0xFFF44336),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
 
-            IconButton(onClick = onDelete) {
+            IconButton(onClick = onDelete, modifier = Modifier.padding(start = 8.dp)) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete Member",
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                    modifier = Modifier.size(24.dp)
+                    tint = Color.Red.copy(alpha = 0.5f),
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -341,7 +381,7 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add New Member") },
+        title = { Text("Add New Member", color = Color(0xFF8E248D), fontWeight = FontWeight.Bold) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Photo Picker
@@ -349,7 +389,8 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .background(Color(0xFFFDF7FD))
+                        .border(2.dp, Color(0xFF8E248D).copy(alpha = 0.2f), CircleShape)
                         .clickable { 
                             photoPickerLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -366,21 +407,21 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
                         )
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Text("Add Photo", fontSize = 10.sp)
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF8E248D))
+                            Text("Add Photo", fontSize = 10.sp, color = Color(0xFF8E248D))
                         }
                     }
                 }
-                Text("(Optional)", fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
+                Text("(Optional)", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                RobustDialogHoverField(value = name, onValueChange = { name = it }, label = "Name")
-                Spacer(modifier = Modifier.height(12.dp))
+                RobustDialogHoverField(value = name, onValueChange = { name = it }, label = "Full Name")
+                Spacer(modifier = Modifier.height(16.dp))
                 RobustDialogHoverField(
                     value = phone, 
                     onValueChange = { 
-                        if (it.length <= 10) {
+                        if (it.all { char -> char.isDigit() } && it.length <= 10) {
                             phone = it
                             phoneError = null
                         }
@@ -392,9 +433,6 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
             }
         },
         confirmButton = {
-            var isHovered by remember { mutableStateOf(false) }
-            val scale by animateFloatAsState(if (isHovered) 1.1f else 1.0f, label = "btnScale")
-            
             Button(
                 onClick = {
                     if (name.isNotBlank()) {
@@ -405,24 +443,14 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
                         }
                     }
                 },
-                modifier = Modifier
-                    .scale(scale)
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                if (event.type == PointerEventType.Enter) isHovered = true
-                                if (event.type == PointerEventType.Exit) isHovered = false
-                            }
-                        }
-                    }
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E248D))
             ) {
                 Text("Add Member")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = Color(0xFF8E248D))
             }
         }
     )
@@ -437,14 +465,12 @@ fun RobustDialogHoverField(
     supportingText: String? = null
 ) {
     var isHovered by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (isHovered) 1.08f else 1.0f, label = "fieldScale")
-    val bgColor by animateColorAsState(if (isHovered) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent, label = "fieldBg")
+    val scale by animateFloatAsState(if (isHovered) 1.05f else 1.0f, label = "fieldScale")
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
-            .background(bgColor, RoundedCornerShape(12.dp))
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -464,9 +490,12 @@ fun RobustDialogHoverField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                unfocusedBorderColor = if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                focusedBorderColor = Color(0xFF8E248D),
+                unfocusedBorderColor = Color(0xFF8E248D).copy(alpha = 0.3f),
+                focusedLabelColor = Color(0xFF8E248D),
+                unfocusedLabelColor = Color.Gray
             )
         )
     }
