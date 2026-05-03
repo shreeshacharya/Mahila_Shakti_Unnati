@@ -18,10 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +42,10 @@ import com.example.mahilashakti.R
 import com.example.mahilashakti.data.entity.Member
 import com.example.mahilashakti.utils.FileUtils
 
+enum class MemberFilter {
+    ALL, DEFAULTERS, RECOVERIES
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemberListScreen(
@@ -55,10 +56,14 @@ fun MemberListScreen(
     val members by viewModel.members.collectAsState()
     val totalSavings by viewModel.totalGroupSavings.collectAsState()
     val weeklySavings by viewModel.weeklySavings.collectAsState()
+    val unpaidLoanMemberIds by viewModel.unpaidLoanMemberIds.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var memberToConfirmPayment by remember { mutableStateOf<Member?>(null) }
+    var memberToDelete by remember { mutableStateOf<Member?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var currentFilter by remember { mutableStateOf(MemberFilter.ALL) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -76,6 +81,33 @@ fun MemberListScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text("Mahila-Shakti Unnati", fontWeight = FontWeight.Bold)
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Filter Menu", tint = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All Members") },
+                                onClick = { currentFilter = MemberFilter.ALL; showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.People, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Defaulters") },
+                                onClick = { currentFilter = MemberFilter.DEFAULTERS; showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Recoveries") },
+                                onClick = { currentFilter = MemberFilter.RECOVERIES; showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color(0xFF8E248D)) }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -155,7 +187,12 @@ fun MemberListScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Members", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8E248D))
+                val titleText = when(currentFilter) {
+                    MemberFilter.ALL -> "Members"
+                    MemberFilter.DEFAULTERS -> "Defaulters"
+                    MemberFilter.RECOVERIES -> "Loan Recoveries"
+                }
+                Text(titleText, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8E248D))
                 Surface(
                     color = Color(0xFF8E248D).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
@@ -171,8 +208,21 @@ fun MemberListScreen(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            val filteredMembers = members.filter {
-                it.name.startsWith(searchQuery, ignoreCase = true)
+            val filteredMembers = members.filter { member ->
+                val matchesSearch = member.name.startsWith(searchQuery, ignoreCase = true)
+                val matchesFilter = when(currentFilter) {
+                    MemberFilter.ALL -> true
+                    MemberFilter.DEFAULTERS -> {
+                        val currentTotal = weeklySavings
+                            .filter { it.memberId == member.id }
+                            .sumOf { it.amount }
+                        currentTotal < 150.0
+                    }
+                    MemberFilter.RECOVERIES -> {
+                        unpaidLoanMemberIds.contains(member.id)
+                    }
+                }
+                matchesSearch && matchesFilter
             }
 
             LazyColumn {
@@ -188,7 +238,7 @@ fun MemberListScreen(
                         isPaid = isPaid,
                         currentWeeklyAmount = currentTotal,
                         onMemberClick = onMemberClick,
-                        onDelete = { viewModel.deleteMember(member) },
+                        onDelete = { memberToDelete = member },
                         onPaidChange = { paid ->
                             if (paid) {
                                 if (!isPaid) {
@@ -246,6 +296,30 @@ fun MemberListScreen(
                 dismissButton = {
                     TextButton(onClick = { memberToConfirmPayment = null }) {
                         Text("Cancel", color = Color(0xFF8E248D))
+                    }
+                }
+            )
+        }
+
+        memberToDelete?.let { member ->
+            AlertDialog(
+                onDismissRequest = { memberToDelete = null },
+                title = { Text("Remove Member", color = Color.Red) },
+                text = { Text("Do you want to remove ${member.name}?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteMember(member)
+                            memberToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Remove")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { memberToDelete = null }) {
+                        Text("Cancel", color = Color.Gray)
                     }
                 }
             )

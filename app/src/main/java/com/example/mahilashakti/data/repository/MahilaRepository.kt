@@ -99,6 +99,10 @@ class MahilaRepository @Inject constructor(
         return unpaidLoans.isNotEmpty()
     }
 
+    fun getAllUnpaidLoans(): Flow<List<Loan>> {
+        return dao.getAllUnpaidLoans()
+    }
+
     suspend fun requestLoan(loan: Loan): Boolean {
         if (hasUnpaidLoan(loan.memberId)) {
             // Cannot take a new loan if there's an unpaid one

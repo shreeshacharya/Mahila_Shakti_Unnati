@@ -72,6 +72,9 @@ interface MahilaDao {
     @Query("SELECT * FROM loans WHERE memberId = :memberId AND isPaid = 0")
     suspend fun getUnpaidLoansForMember(memberId: Long): List<Loan>
 
+    @Query("SELECT * FROM loans WHERE isPaid = 0")
+    fun getAllUnpaidLoans(): Flow<List<Loan>>
+
     @Transaction
     @Query("SELECT * FROM members WHERE id = :memberId")
     fun getMemberWithLoans(memberId: Long): Flow<MemberWithLoans>

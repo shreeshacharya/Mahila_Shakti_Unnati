@@ -24,6 +24,9 @@ class MemberViewModel @Inject constructor(
     private val _weeklySavings = MutableStateFlow<List<Savings>>(emptyList())
     val weeklySavings: StateFlow<List<Savings>> = _weeklySavings.asStateFlow()
 
+    private val _unpaidLoanMemberIds = MutableStateFlow<Set<Long>>(emptySet())
+    val unpaidLoanMemberIds: StateFlow<Set<Long>> = _unpaidLoanMemberIds.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.allMembers.collectLatest { memberList ->
@@ -38,6 +41,11 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getWeeklySavings().collectLatest { savingsList ->
                 _weeklySavings.value = savingsList
+            }
+        }
+        viewModelScope.launch {
+            repository.getAllUnpaidLoans().collectLatest { loans ->
+                _unpaidLoanMemberIds.value = loans.map { it.memberId }.toSet()
             }
         }
     }

@@ -45,7 +45,6 @@ fun AdminLoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Display the logo image prominently
             Image(
                 painter = painterResource(id = R.drawable.mahilashakti),
                 contentDescription = "Mahila Shakti Unnati Logo",
@@ -61,7 +60,7 @@ fun AdminLoginScreen(
                     .padding(horizontal = 8.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFDF7FD) // Very light purple tint
+                    containerColor = Color(0xFFFDF7FD)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
@@ -73,7 +72,7 @@ fun AdminLoginScreen(
                         text = "Admin Login",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF8E248D) // Deep purple matching the logo
+                        color = Color(0xFF8E248D)
                     )
                     
                     Spacer(modifier = Modifier.height(28.dp))
@@ -97,6 +96,7 @@ fun AdminLoginScreen(
                         Text(
                             text = error!!,
                             color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -135,10 +135,11 @@ fun AdminLoginScreen(
                             },
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8E248D) // Deep purple matching the logo
+                            containerColor = Color(0xFF8E248D),
+                            contentColor = Color.White
                         )
                     ) {
-                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -184,16 +185,17 @@ fun HoverInputField(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
+            // Solid Black text for high visibility
             textStyle = TextStyle(color = Color.Black, fontSize = 16.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black,
+                focusedLabelColor = Color(0xFF8E248D),
+                unfocusedLabelColor = Color.Black.copy(alpha = 0.7f),
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White,
-                focusedLabelColor = Color(0xFF8E248D),
-                unfocusedLabelColor = Color.Gray,
                 focusedBorderColor = Color(0xFF8E248D),
-                unfocusedBorderColor = Color.LightGray,
+                unfocusedBorderColor = Color.Black.copy(alpha = 0.2f),
                 cursorColor = Color(0xFF8E248D)
             )
         )
