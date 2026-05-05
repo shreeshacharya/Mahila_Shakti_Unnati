@@ -4,10 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,16 +22,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +36,7 @@ import coil.compose.AsyncImage
 import com.example.mahilashakti.R
 import com.example.mahilashakti.data.entity.Member
 import com.example.mahilashakti.utils.FileUtils
+import kotlinx.coroutines.launch
 
 enum class MemberFilter {
     ALL, DEFAULTERS, RECOVERIES
@@ -52,471 +48,385 @@ fun MemberListScreen(
     viewModel: MemberViewModel = hiltViewModel(),
     onMemberClick: (Long) -> Unit
 ) {
-    val context = LocalContext.current
     val members by viewModel.members.collectAsState()
     val totalSavings by viewModel.totalGroupSavings.collectAsState()
     val weeklySavings by viewModel.weeklySavings.collectAsState()
     val unpaidLoanMemberIds by viewModel.unpaidLoanMemberIds.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
-    var memberToConfirmPayment by remember { mutableStateOf<Member?>(null) }
     var memberToDelete by remember { mutableStateOf<Member?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var currentFilter by remember { mutableStateOf(MemberFilter.ALL) }
-    var showMenu by remember { mutableStateOf(false) }
+    
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxWidth(0.5f),
+                drawerContainerColor = Color.White,
+                drawerShape = RectangleShape
+            ) {
+                Spacer(modifier = Modifier.height(40.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Surface(
+                        modifier = Modifier.size(70.dp),
+                        shape = CircleShape,
+                        color = Color(0xFFFDF7FD),
+                        border = BorderStroke(1.dp, Color(0xFF8E248D).copy(alpha = 0.1f))
+                    ) {
                         Image(
                             painter = painterResource(id = R.drawable.mahilashakti),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(40.dp)
+                                .fillMaxSize()
+                                .padding(8.dp)
                                 .clip(CircleShape)
-                                .background(Color.White)
-                                .padding(2.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("Mahila-Shakti Unnati", fontWeight = FontWeight.Bold)
                     }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Filter Menu", tint = Color.White)
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("All Members") },
-                                onClick = { currentFilter = MemberFilter.ALL; showMenu = false },
-                                leadingIcon = { Icon(Icons.Default.People, contentDescription = null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Defaulters") },
-                                onClick = { currentFilter = MemberFilter.DEFAULTERS; showMenu = false },
-                                leadingIcon = { Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Recoveries") },
-                                onClick = { currentFilter = MemberFilter.RECOVERIES; showMenu = false },
-                                leadingIcon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color(0xFF8E248D)) }
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF8E248D),
-                    titleContentColor = Color.White
-                )
-            )
-        },
-        floatingActionButton = {
-            var isHovered by remember { mutableStateOf(false) }
-            val fabScale by animateFloatAsState(
-                if (isHovered) 1.15f else 1.0f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                label = "fabScale"
-            )
-            
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = Color(0xFF8E248D),
-                contentColor = Color.White,
-                modifier = Modifier
-                    .scale(fabScale)
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                if (event.type == PointerEventType.Enter) isHovered = true
-                                if (event.type == PointerEventType.Exit) isHovered = false
-                            }
-                        }
-                    }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Member")
-            }
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF7FD)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Total Group Savings", fontSize = 16.sp, color = Color(0xFF8E248D))
-                    Text("₹${String.format("%.2f", totalSavings)}", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF8E248D))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search members...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF8E248D)) },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White,
-                    focusedBorderColor = Color(0xFF8E248D),
-                    unfocusedBorderColor = Color(0xFF8E248D).copy(alpha = 0.3f)
-                )
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val titleText = when(currentFilter) {
-                    MemberFilter.ALL -> "Members"
-                    MemberFilter.DEFAULTERS -> "Defaulters"
-                    MemberFilter.RECOVERIES -> "Loan Recoveries"
-                }
-                Text(titleText, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8E248D))
-                Surface(
-                    color = Color(0xFF8E248D).copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Weekly Target: ₹150", 
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 12.sp, 
-                        fontWeight = FontWeight.Medium,
+                        "Admin",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF8E248D)
                     )
+                    Text(
+                        "Mahila-Shakti Unnati",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Divider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = Color(0xFF8E248D).copy(alpha = 0.1f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                NavigationDrawerItem(
+                    label = { Text("All Members", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) },
+                    selected = currentFilter == MemberFilter.ALL,
+                    onClick = {
+                        currentFilter = MemberFilter.ALL
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.People, contentDescription = null) },
+                    shape = RectangleShape,
+                    modifier = Modifier.padding(vertical = 1.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color(0xFF8E248D).copy(alpha = 0.1f),
+                        selectedIconColor = Color(0xFF8E248D),
+                        selectedTextColor = Color(0xFF8E248D),
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray
+                    )
+                )
+                NavigationDrawerItem(
+                    label = { Text("Defaulters", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) },
+                    selected = currentFilter == MemberFilter.DEFAULTERS,
+                    onClick = {
+                        currentFilter = MemberFilter.DEFAULTERS
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Warning, contentDescription = null) },
+                    shape = RectangleShape,
+                    modifier = Modifier.padding(vertical = 1.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color.Red.copy(alpha = 0.1f),
+                        selectedIconColor = Color.Red,
+                        selectedTextColor = Color.Red,
+                        unselectedIconColor = Color.Red.copy(alpha = 0.6f),
+                        unselectedTextColor = Color.Red.copy(alpha = 0.6f)
+                    )
+                )
+                NavigationDrawerItem(
+                    label = { Text("Loan Recoveries", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) },
+                    selected = currentFilter == MemberFilter.RECOVERIES,
+                    onClick = {
+                        currentFilter = MemberFilter.RECOVERIES
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
+                    shape = RectangleShape,
+                    modifier = Modifier.padding(vertical = 1.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color(0xFF8E248D).copy(alpha = 0.1f),
+                        selectedIconColor = Color(0xFF8E248D),
+                        selectedTextColor = Color(0xFF8E248D),
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray
+                    )
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.mahilashakti),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .padding(2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Mahila-Shakti", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Open Drawer", tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFF8E248D),
+                        titleContentColor = Color.White
+                    )
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = Color(0xFF8E248D),
+                    contentColor = Color.White,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Member", modifier = Modifier.size(28.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+        ) { padding ->
+            if (showAddDialog) {
+                AddMemberDialog(
+                    onDismiss = { showAddDialog = false },
+                    onConfirm = { name, phone, photoUri ->
+                        viewModel.addMember(name, phone, photoUri)
+                        showAddDialog = false
+                    }
+                )
+            }
 
-            val filteredMembers = members.filter { member ->
-                val matchesSearch = member.name.startsWith(searchQuery, ignoreCase = true)
-                val matchesFilter = when(currentFilter) {
-                    MemberFilter.ALL -> true
-                    MemberFilter.DEFAULTERS -> {
+            if (memberToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { memberToDelete = null },
+                    title = { Text("Delete Member") },
+                    text = { Text("Are you sure you want to delete ${memberToDelete?.name}?") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            memberToDelete?.let { viewModel.deleteMember(it) }
+                            memberToDelete = null
+                        }) {
+                            Text("Delete", color = Color.Red)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { memberToDelete = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFDF7FD)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Total Group Savings", fontSize = 16.sp, color = Color(0xFF8E248D))
+                        Text("₹${String.format("%.2f", totalSavings)}", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF8E248D))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search members...", color = Color.Gray) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF8E248D)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF8E248D),
+                        unfocusedBorderColor = Color(0xFF8E248D).copy(alpha = 0.3f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val titleText = when(currentFilter) {
+                        MemberFilter.ALL -> "Members"
+                        MemberFilter.DEFAULTERS -> "Defaulters"
+                        MemberFilter.RECOVERIES -> "Loan Recoveries"
+                    }
+                    Text(titleText, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8E248D))
+                    Surface(
+                        color = Color(0xFF8E248D).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "Weekly Target: ₹150", 
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 12.sp, 
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF8E248D)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val filteredMembers = members.filter { member ->
+                    val matchesSearch = member.name.startsWith(searchQuery, ignoreCase = true)
+                    val matchesFilter = when(currentFilter) {
+                        MemberFilter.ALL -> true
+                        MemberFilter.DEFAULTERS -> {
+                            val currentTotal = weeklySavings
+                                .filter { it.memberId == member.id }
+                                .sumOf { it.amount }
+                            currentTotal < 150.0
+                        }
+                        MemberFilter.RECOVERIES -> {
+                            unpaidLoanMemberIds.contains(member.id)
+                        }
+                    }
+                    matchesSearch && matchesFilter
+                }
+
+                LazyColumn {
+                    items(filteredMembers) { member ->
                         val currentTotal = weeklySavings
                             .filter { it.memberId == member.id }
                             .sumOf { it.amount }
-                        currentTotal < 150.0
-                    }
-                    MemberFilter.RECOVERIES -> {
-                        unpaidLoanMemberIds.contains(member.id)
-                    }
-                }
-                matchesSearch && matchesFilter
-            }
+                        
+                        val isPaid = currentTotal >= 150.0
 
-            LazyColumn {
-                items(filteredMembers) { member ->
-                    val currentTotal = weeklySavings
-                        .filter { it.memberId == member.id }
-                        .sumOf { it.amount }
-                    
-                    val isPaid = currentTotal >= 150.0
-
-                    MemberItem(
-                        member = member, 
-                        isPaid = isPaid,
-                        currentWeeklyAmount = currentTotal,
-                        onMemberClick = onMemberClick,
-                        onDelete = { memberToDelete = member },
-                        onPaidChange = { paid ->
-                            if (paid) {
-                                if (!isPaid) {
-                                    memberToConfirmPayment = member
-                                }
-                            } else {
-                                viewModel.toggleWeeklySavings(member.id, false)
-                            }
-                        }
-                    )
+                        MemberItem(
+                            member = member, 
+                            isPaid = isPaid,
+                            currentWeeklyAmount = currentTotal,
+                            onMemberClick = onMemberClick,
+                            onDelete = { memberToDelete = member }
+                        )
+                    }
                 }
             }
-        }
-
-        if (showAddDialog) {
-            AddMemberDialog(
-                onDismiss = { showAddDialog = false },
-                onAdd = { name, phone, photoUri ->
-                    val savedUri = photoUri?.let {
-                        FileUtils.saveImageToInternalStorage(context, it)
-                    }
-                    viewModel.addMember(name, phone, savedUri)
-                    showAddDialog = false
-                }
-            )
-        }
-
-        memberToConfirmPayment?.let { member ->
-            val currentTotal = weeklySavings
-                .filter { it.memberId == member.id }
-                .sumOf { it.amount }
-            val needed = (150.0 - currentTotal).coerceAtLeast(0.0)
-
-            AlertDialog(
-                onDismissRequest = { memberToConfirmPayment = null },
-                title = { Text("Confirm Weekly Payment", color = Color(0xFF8E248D)) },
-                text = { 
-                    if (currentTotal > 0) {
-                        Text("${member.name} has already paid ₹${String.format("%.2f", currentTotal)}. Add remaining ₹${String.format("%.2f", needed)} to reach the ₹150 goal?")
-                    } else {
-                        Text("Has ${member.name} paid the weekly amount of ₹150?")
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.toggleWeeklySavings(member.id, true, 150.0)
-                            memberToConfirmPayment = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E248D))
-                    ) {
-                        Text("Confirm")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { memberToConfirmPayment = null }) {
-                        Text("Cancel", color = Color(0xFF8E248D))
-                    }
-                }
-            )
-        }
-
-        memberToDelete?.let { member ->
-            AlertDialog(
-                onDismissRequest = { memberToDelete = null },
-                title = { Text("Remove Member", color = Color.Red) },
-                text = { Text("Do you want to remove ${member.name}?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteMember(member)
-                            memberToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                    ) {
-                        Text("Remove")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { memberToDelete = null }) {
-                        Text("Cancel", color = Color.Gray)
-                    }
-                }
-            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MemberItem(
-    member: Member, 
-    isPaid: Boolean,
-    currentWeeklyAmount: Double,
-    onMemberClick: (Long) -> Unit,
-    onDelete: () -> Unit,
-    onPaidChange: (Boolean) -> Unit
+fun AddMemberDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String?) -> Unit
 ) {
-    var isHovered by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        if (isHovered) 1.03f else 1.0f, 
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "itemScale"
-    )
-    val bgColor by animateColorAsState(
-        targetValue = if (isHovered) Color(0xFFFDF7FD) else Color.White,
-        label = "itemBg"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .scale(scale)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        if (event.type == PointerEventType.Enter) isHovered = true
-                        if (event.type == PointerEventType.Exit) isHovered = false
-                    }
-                }
-            },
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 6.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onMemberClick(member.id) }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (member.photoUri != null) {
-                AsyncImage(
-                    model = member.photoUri,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color(0xFF8E248D), CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.mahilashakti),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color(0xFF8E248D), CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(member.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
-                if (!member.phoneNumber.isNullOrBlank()) {
-                    Text(member.phoneNumber, fontSize = 14.sp, color = Color.Gray)
-                }
-                Text(
-                    text = "Paid: ₹${String.format("%.2f", currentWeeklyAmount)} / ₹150",
-                    fontSize = 13.sp,
-                    color = if (isPaid) Color(0xFF4CAF50) else Color(0xFF8E248D),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Switch(
-                    checked = isPaid,
-                    onCheckedChange = onPaidChange,
-                    modifier = Modifier.graphicsLayer(scaleX = 0.85f, scaleY = 0.85f),
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF4CAF50),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.LightGray
-                    )
-                )
-                Text(
-                    text = if (isPaid) "PAID" else "PENDING",
-                    fontSize = 10.sp,
-                    color = if (isPaid) Color(0xFF4CAF50) else Color(0xFFF44336),
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-
-            IconButton(onClick = onDelete, modifier = Modifier.padding(start = 8.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Member",
-                    tint = Color.Red.copy(alpha = 0.5f),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
-    var phoneError by remember { mutableStateOf<String?>(null) }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        photoUri = uri
-    }
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> 
+            uri?.let {
+                val savedUri = FileUtils.saveImageToInternalStorage(context, it)
+                selectedImageUri = savedUri
+            }
+        }
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add New Member", color = Color(0xFF8E248D), fontWeight = FontWeight.Bold) },
+        title = { Text("Add New Member", fontWeight = FontWeight.Bold, color = Color(0xFF8E248D)) },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Photo Picker
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Box(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFFDF7FD))
                         .border(2.dp, Color(0xFF8E248D).copy(alpha = 0.2f), CircleShape)
-                        .clickable { 
+                        .clickable {
                             photoPickerLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (photoUri != null) {
+                    if (selectedImageUri != null) {
                         AsyncImage(
-                            model = photoUri,
+                            model = selectedImageUri,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF8E248D))
-                            Text("Add Photo", fontSize = 10.sp, color = Color(0xFF8E248D))
-                        }
+                        Icon(
+                            Icons.Default.AddAPhoto,
+                            contentDescription = null,
+                            tint = Color(0xFF8E248D),
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
                 }
-                Text("(Optional)", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
-                
-                Spacer(modifier = Modifier.height(24.dp))
-
-                RobustDialogHoverField(value = name, onValueChange = { name = it }, label = "Full Name")
                 Spacer(modifier = Modifier.height(16.dp))
-                RobustDialogHoverField(
-                    value = phone, 
-                    onValueChange = { 
-                        if (it.all { char -> char.isDigit() } && it.length <= 10) {
-                            phone = it
-                            phoneError = null
-                        }
-                    }, 
-                    label = "Phone Number",
-                    isError = phoneError != null,
-                    supportingText = if (phoneError != null) phoneError else "${phone.length}/10"
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name (Compulsory)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 10) phone = it },
+                    label = { Text("Phone Number (Compulsory - 10 digits)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        if (phone.length == 10) {
-                            onAdd(name, phone, photoUri)
-                        } else {
-                            phoneError = "Phone number must be exactly 10 digits"
-                        }
-                    }
-                },
+                onClick = { onConfirm(name, phone, selectedImageUri) },
+                enabled = name.isNotBlank() && phone.length == 10,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8E248D))
             ) {
                 Text("Add Member")
@@ -524,53 +434,65 @@ fun AddMemberDialog(onDismiss: () -> Unit, onAdd: (String, String, Uri?) -> Unit
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF8E248D))
+                Text("Cancel", color = Color.Gray)
             }
         }
     )
 }
 
 @Composable
-fun RobustDialogHoverField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    isError: Boolean = false,
-    supportingText: String? = null
+fun MemberItem(
+    member: Member,
+    isPaid: Boolean,
+    currentWeeklyAmount: Double,
+    onMemberClick: (Long) -> Unit,
+    onDelete: () -> Unit
 ) {
-    var isHovered by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (isHovered) 1.05f else 1.0f, label = "fieldScale")
-
-    Box(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        if (event.type == PointerEventType.Enter) isHovered = true
-                        if (event.type == PointerEventType.Exit) isHovered = false
-                    }
-                }
-            }
+            .padding(vertical = 4.dp)
+            .clickable { onMemberClick(member.id) },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label) },
-            isError = isError,
-            supportingText = supportingText?.let { { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                focusedBorderColor = Color(0xFF8E248D),
-                unfocusedBorderColor = Color(0xFF8E248D).copy(alpha = 0.3f),
-                focusedLabelColor = Color(0xFF8E248D),
-                unfocusedLabelColor = Color.Gray
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = member.photoUri,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                fallback = painterResource(id = R.drawable.ic_launcher_foreground)
             )
-        )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = member.name, 
+                    fontWeight = FontWeight.Bold, 
+                    fontSize = 16.sp,
+                    color = Color.Black
+                )
+                Text(
+                    text = "Saved: ₹$currentWeeklyAmount", 
+                    fontSize = 14.sp, 
+                    color = Color.Gray
+                )
+            }
+            if (isPaid) {
+                Icon(Icons.Default.CheckCircle, contentDescription = "Paid", tint = Color.Green)
+            } else {
+                Icon(Icons.Default.Error, contentDescription = "Not Paid", tint = Color.Red)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+            }
+        }
     }
 }
